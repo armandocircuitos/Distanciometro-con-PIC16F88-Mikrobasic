@@ -1,0 +1,110 @@
+program Distancia_PIC16F88_03
+Dim unidad, decena, centena, residuos as integer
+Dim numero as integer [10]
+
+dim promedio, aux as integer
+dim dist as word
+dim CONTH, CONTL as integer
+dim cm, cnt as short
+
+sub function ping_HC_SR04() as longword
+dim dista as byte
+TMR1H = 0xB1
+TMR1L = 0xDF
+PortA.6 = 0  'trigger
+Delay_us(2)
+PortA.6 = 1  'trigger
+Delay_us(10)
+PortA.6 = 0   'trigger
+while(PortA.7=0)wend  'Echo
+T1CON.TMR1ON=1
+while((PortA.7=1)AND(PIR1.TMR1IF=0))wend 'Echo
+T1CON.TMR1ON =0
+PIR1.TMR1IF=0
+CONTH=TMR1H
+CONTL=TMR1L
+CONTH=CONTH << 8
+CONTH=CONTH AND 0XFF00
+CONTL=CONTL AND 0x00FF
+CONTH=CONTH OR CONTL
+result = CONTH
+end sub
+
+sub procedure TIMER1_INI()
+PIR1.TMR1IF=0
+PIE1.TMR1IE=0
+T1CON.TMR1CS=0
+T1CON.T1CKPS1=T1CON.T1CKPS0=0
+end sub
+
+
+main:
+ADCON0 = 0
+ANSEL = 0
+CMCON = 7
+TRISA = 0xB8
+TRISB = 0x00
+PORTA = 0x00
+PORTB = 0x00
+
+CONTH=0
+CONTL=0
+TIMER1_INI()
+Delay_ms(5)
+
+promedio = 0
+cnt = 0
+aux = 0
+unidad = 0
+decena = 0
+centena = 0
+residuos = 0
+
+numero[0] = 0xBF
+numero[1] = 0x86
+numero[2] = 0xDB
+numero[3] = 0xCF
+numero[4] = 0xE6
+numero[5] = 0xED
+numero[6] = 0xFD
+numero[7] = 0x87
+numero[8] = 0xFF
+numero[9] = 0xEF
+
+While true
+dist=ping_HC_SR04()
+dist = ((dist-45535) / 29) '  /29)/2
+Delay_ms(1)
+
+'residuos = dist
+residuos = promedio
+unidad=residuos mod 10
+residuos=residuos / 10
+decena=residuos mod 10
+residuos=residuos / 10
+centena=residuos mod 10
+
+PORTB=numero[unidad]
+PORTA=0x03
+delay_ms(5)
+PORTA=0xff
+PORTB=numero[decena]
+PORTA=0x05
+delay_ms(5)
+PORTA=0x0f
+PORTB=numero[centena]
+PORTA=0x06
+delay_ms(5)
+PORTA=0x0f
+
+cnt = cnt + 1
+aux = aux + dist
+if cnt > 5 then
+   promedio = aux / 6
+   cnt = 0
+   aux = 0
+end if
+
+wend
+
+end.
